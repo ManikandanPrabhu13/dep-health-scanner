@@ -2,6 +2,7 @@ import requests
 import re
 import json
 import sys
+import tomllib
 from packaging import version
 from datetime import datetime
 
@@ -85,6 +86,24 @@ def parse_package_json(content):
     except Exception:
         return {}
 
+def parse_pyproject(content):
+    """Parse pyproject.toml dependencies."""
+    try:
+        data = tomllib.loads(content)
+
+        deps = {}
+
+        # Poetry projects
+        poetry = data.get("tool", {}).get("poetry", {})
+        for pkg, ver in poetry.get("dependencies", {}).items():
+            if pkg != "python":
+                deps[pkg] = str(ver)
+
+        return deps
+
+    except Exception:
+        return {}
+
 
 def generate_html_report(results, repo_url, ecosystem):
     """Generate a clean HTML report."""
@@ -144,7 +163,7 @@ def generate_html_report(results, repo_url, ecosystem):
 def scan(repo_url):
     print(f"\nScanning: {repo_url}\n")
 
-    # Try Python first
+    # Try requirements.txt
     content = get_github_file(repo_url, "requirements.txt")
     if content:
         print("Found requirements.txt — checking PyPI...")
@@ -153,7 +172,16 @@ def scan(repo_url):
         generate_html_report(results, repo_url, "Python/PyPI")
         return
 
-    # Try Node.js
+    # Try pyproject.toml
+    content = get_github_file(repo_url, "pyproject.toml")
+    if content:
+        print("Found pyproject.toml — checking PyPI...")
+        packages = parse_pyproject(content)
+        results = [check_pypi(pkg, ver) for pkg, ver in packages.items()]
+        generate_html_report(results, repo_url, "Python/PyPI")
+        return
+
+    # Try package.json
     content = get_github_file(repo_url, "package.json")
     if content:
         print("Found package.json — checking npm...")
@@ -162,12 +190,14 @@ def scan(repo_url):
         generate_html_report(results, repo_url, "Node.js/npm")
         return
 
-    print("No requirements.txt or package.json found in this repo.")
-
+    print(
+        "No supported dependency files found "
+        "(requirements.txt, pyproject.toml, package.json)."
+    )
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python scanner.py <github_repo_url>")
-        print("Example: python scanner.py https://github.com/psf/requests")
+         print("Usage: python scanner.py <github_repo_url>")
+         print("Example: python scanner.py https://github.com/psf/requests")
     else:
         scan(sys.argv[1])
