@@ -1,6 +1,6 @@
 # Dependency Health Scanner
 
-**Status:** Developer Tooling Project • API Integration • Automated Dependency Analysis
+**Status:** Developer Tooling Project • API Integration • Automated Dependency AnalysiS
 
 A Python-based tool that scans public GitHub repositories, checks dependencies against live package registries, and generates a colour-coded HTML report highlighting outdated, up-to-date, and missing packages.
 
